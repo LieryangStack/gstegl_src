@@ -110,7 +110,7 @@ gst_egl_adaptation_init_display (GstEglAdaptationContext * ctx, gchar* winsys)
   GstEglGlesSink *sink = (GstEglGlesSink *) ctx->element;
   EGLDisplay display = EGL_NO_DISPLAY;
   GST_DEBUG_OBJECT (ctx->element, "Enter EGL initial configuration");
-
+  
   if (!platform_wrapper_init ()) {
     GST_ERROR_OBJECT (ctx->element, "Couldn't init EGL platform wrapper");
     goto HANDLE_ERROR;
@@ -127,6 +127,8 @@ gst_egl_adaptation_init_display (GstEglAdaptationContext * ctx, gchar* winsys)
 
     GST_OBJECT_UNLOCK (ctx->element);
 
+    
+
 #ifdef USE_EGL_WAYLAND
     if (g_strcmp0(winsys, "wayland") == 0) {
       display = eglGetDisplay (platform_initialize_display_wayland());
@@ -140,10 +142,14 @@ gst_egl_adaptation_init_display (GstEglAdaptationContext * ctx, gchar* winsys)
     }
 #endif
 
+
+
     if (display == EGL_NO_DISPLAY) {
       GST_ERROR_OBJECT (ctx->element, "Could not get EGL display connection");
       goto HANDLE_ERROR;        /* No EGL error is set by eglGetDisplay() */
     }
+
+    /* EGLDisplay 包装了一下， ctx->display = display; */
     ctx->display = gst_egl_display_new (display, NULL);
 
     context = gst_context_new_egl_display (ctx->display, FALSE);
@@ -154,22 +160,28 @@ gst_egl_adaptation_init_display (GstEglAdaptationContext * ctx, gchar* winsys)
     GST_OBJECT_UNLOCK (ctx->element);
   }
 
-  if (!eglInitialize (gst_egl_display_get (ctx->display),
-          &ctx->eglglesctx->egl_major, &ctx->eglglesctx->egl_minor)) {
-    got_egl_error ("eglInitialize");
-    GST_ERROR_OBJECT (ctx->element, "Could not init EGL display connection");
-    goto HANDLE_EGL_ERROR;
-  }
+  /* 来自UI的 egl_display 已经被初始化了 */
 
-  /* Check against required EGL version
-   * XXX: Need to review the version requirement in terms of the needed API
-   */
-  if (ctx->eglglesctx->egl_major < GST_EGLGLESSINK_EGL_MIN_VERSION) {
-    GST_ERROR_OBJECT (ctx->element, "EGL v%d needed, but you only have v%d.%d",
-        GST_EGLGLESSINK_EGL_MIN_VERSION, ctx->eglglesctx->egl_major,
-        ctx->eglglesctx->egl_minor);
-    goto HANDLE_ERROR;
-  }
+  // if (!eglInitialize (gst_egl_display_get (ctx->display),
+  //         &ctx->eglglesctx->egl_major, &ctx->eglglesctx->egl_minor)) {
+  //   got_egl_error ("eglInitialize");
+  //   GST_ERROR_OBJECT (ctx->element, "Could not init EGL display connection");
+  //   goto HANDLE_EGL_ERROR;
+  // }
+
+  // /* Check against required EGL version
+  //  * XXX: Need to review the version requirement in terms of the needed API
+  //  */
+  // if (ctx->eglglesctx->egl_major < GST_EGLGLESSINK_EGL_MIN_VERSION) {
+  //   GST_ERROR_OBJECT (ctx->element, "EGL v%d needed, but you only have v%d.%d",
+  //       GST_EGLGLESSINK_EGL_MIN_VERSION, ctx->eglglesctx->egl_major,
+  //       ctx->eglglesctx->egl_minor);
+  //   goto HANDLE_ERROR;
+  // }
+
+  ctx->eglglesctx->egl_major = 3;
+
+  ctx->eglglesctx->egl_minor = 2;
 
   GST_INFO_OBJECT (ctx->element, "System reports supported EGL version v%d.%d",
       ctx->eglglesctx->egl_major, ctx->eglglesctx->egl_minor);
@@ -207,6 +219,11 @@ gst_egl_adaptation_context_make_current (GstEglAdaptationContext * ctx,
 
     GST_DEBUG_OBJECT (ctx->element, "Attaching context to thread %p",
         g_thread_self ());
+
+    g_print ("eglMakeCurrent  egldisplay = %p bind = %d\n", gst_egl_display_get (ctx->display), bind);
+    g_print ("eglMakeCurrent  ctx->eglglesctx->surface = %p bind = %d\n", ctx->eglglesctx->surface, bind);
+    g_print ("eglMakeCurrent  ctx->eglglesctx->eglcontext = %p bind = %d\n", ctx->eglglesctx->eglcontext, bind);
+    
     if (!eglMakeCurrent (gst_egl_display_get (ctx->display),
             ctx->eglglesctx->surface, ctx->eglglesctx->surface,
             ctx->eglglesctx->eglcontext)) {
@@ -224,6 +241,12 @@ gst_egl_adaptation_context_make_current (GstEglAdaptationContext * ctx,
       return FALSE;
     }
   }
+  // 我的测试能否绑定成功
+  // glFinish();
+  
+  // glBindTexture(GL_TEXTURE_2D, 1); 
+  // got_egl_error ("glBindTexture");
+  
 
   return TRUE;
 }
@@ -307,7 +330,8 @@ _gst_egl_choose_config (GstEglAdaptationContext * ctx, gboolean try_only,
   GstEglGlesSink *sink = (GstEglGlesSink *)ctx->element;
 
   ctx->eglglesctx->config = sink->egl_config;
-  *num_configs = 1;
+  if (num_configs)
+    *num_configs = 1;
 
   return TRUE;
 }
@@ -418,11 +442,21 @@ gst_egl_adaptation_query_par (GstEglAdaptationContext * ctx)
 gboolean
 gst_egl_adaptation_create_egl_context (GstEglAdaptationContext * ctx)
 {
-  EGLint con_attribs[] = { EGL_CONTEXT_CLIENT_VERSION, 2, EGL_NONE };
+  // EGLint con_attribs[] = { EGL_CONTEXT_CLIENT_VERSION, 2, EGL_NONE };
+
+  EGLint con_attribs[] = {
+    EGL_CONTEXT_MAJOR_VERSION, 3, 
+    EGL_CONTEXT_MINOR_VERSION, 2, 
+    EGL_NONE 
+  };
+  GstEglGlesSink *sink = (GstEglGlesSink *)ctx->element;
 
   ctx->eglglesctx->eglcontext =
       eglCreateContext (gst_egl_display_get (ctx->display),
-      ctx->eglglesctx->config, ((GstEglGlesSink *)ctx)->egl_share_context, con_attribs);
+      ctx->eglglesctx->config, sink->egl_share_context, con_attribs);
+  
+  g_print ("sink->egl_share_context = %p\n", sink->egl_share_context);
+  g_print ("ctx->eglglesctx->eglcontext = %p\n", ctx->eglglesctx->eglcontext);
 
   if (ctx->eglglesctx->eglcontext == EGL_NO_CONTEXT) {
     GST_ERROR_OBJECT (ctx->element, "EGL call returned error %x",

@@ -897,6 +897,7 @@ HANDLE_ERROR:
 static gboolean
 gst_eglglessink_stop (GstEglGlesSink * eglglessink)
 {
+  g_print ("gst_eglglessink_stop (GstEglGlesSink * eglglessink)\n");
   GST_DEBUG_OBJECT (eglglessink, "Stopping");
 
   gst_data_queue_set_flushing (eglglessink->queue, TRUE);
@@ -2726,6 +2727,7 @@ gst_eglglessink_cuda_init (GstEglGlesSink * eglglessink) {
           *                CU_GRAPHICS_REGISTER_FLAGS_SURFACE_LDST：指定 CUDA 将该资源绑定到表面引用。
           *                CU_GRAPHICS_REGISTER_FLAGS_TEXTURE_GATHER：指定 CUDA 将对此资源执行纹理收集操作。
          */
+         g_print ("eglglessink->egl_context->texture[0] = %d\n", eglglessink->egl_context->texture[0]);
          result = cuGraphicsGLRegisterImage(&(eglglessink->cuResource[0]), eglglessink->egl_context->texture[0], GL_TEXTURE_2D, 0);
          if (result != CUDA_SUCCESS) {
             g_print ("cuGraphicsGLRegisterBuffer failed with error(%d) %s texture = %x\n", result, __func__, eglglessink->egl_context->texture[0]);
@@ -2842,6 +2844,8 @@ gst_eglglessink_configure_caps (GstEglGlesSink * eglglessink, GstCaps * caps)
   gint width = 0;
   gint height = 0;
 
+  g_print ("gst_eglglessink_configure_caps\n");
+
   gst_video_info_init (&info);
   if (!(ret = gst_video_info_from_caps (&info, caps))) {
     GST_ERROR_OBJECT (eglglessink, "Couldn't parse caps");
@@ -2875,6 +2879,8 @@ gst_eglglessink_configure_caps (GstEglGlesSink * eglglessink, GstCaps * caps)
     GST_ERROR_OBJECT (eglglessink, "Couldn't choose EGL config");
     goto HANDLE_ERROR;
   }
+
+  g_print ("gst_egl_adaptation_choose_config\n");
 
   gst_caps_replace (&eglglessink->configured_caps, caps);
 
@@ -2927,6 +2933,8 @@ gst_eglglessink_configure_caps (GstEglGlesSink * eglglessink, GstCaps * caps)
        goto HANDLE_ERROR;
     }
   }
+
+  g_print ("success\n");
 
 SUCCEED:
   GST_INFO_OBJECT (eglglessink, "Configured caps successfully");
@@ -3013,6 +3021,7 @@ gst_eglglessink_setcaps (GstBaseSink * bsink, GstCaps * caps)
 static gboolean
 gst_eglglessink_open (GstEglGlesSink * eglglessink)
 {
+
   if (!egl_init (eglglessink)) {
     return FALSE;
   }
@@ -3031,6 +3040,7 @@ gst_eglglessink_open (GstEglGlesSink * eglglessink)
 static gboolean
 gst_eglglessink_close (GstEglGlesSink * eglglessink)
 {
+  g_print ("gst_eglglessink_close (GstEglGlesSink * eglglessink)\n");
   double fJitterAvg = 0, fJitterStd = 0, fJitterHighest = 0;
 
 #ifndef HAVE_IOS
@@ -3227,18 +3237,22 @@ gst_eglglessink_set_property (GObject * object, guint prop_id,
     case PROP_IVI_SURF_ID:
       eglglessink->ivisurf_id = g_value_get_uint (value);
       break;
-
+    /* 自定义属性 */
     case PROP_EGL_DISPLAY:
       eglglessink->egl_display = g_value_get_pointer (value);
+      g_print ("eglglessink->egl_display = %p\n", eglglessink->egl_display);
       break;
     case PROP_EGL_CONFIG:
       eglglessink->egl_config = g_value_get_pointer (value);
+      g_print ("eglglessink->egl_config = %p\n", eglglessink->egl_config);
       break;
     case PROP_EGL_SHARE_CONTEXT:
       eglglessink->egl_share_context = g_value_get_pointer (value);
+      g_print ("eglglessink->egl_share_context = %p\n", eglglessink->egl_share_context);
       break;
     case PROP_EGL_SHARE_TEXTURE:
       eglglessink->egl_share_texture = g_value_get_uint (value);
+      g_print ("eglglessink->egl_share_texture = %d\n", eglglessink->egl_share_texture);
       break;
 
     default:
@@ -3305,6 +3319,22 @@ gst_eglglessink_get_property (GObject * object, guint prop_id,
     case PROP_IVI_SURF_ID:
       g_value_set_uint (value, eglglessink->ivisurf_id);
       break;
+
+
+    case PROP_EGL_DISPLAY:
+      g_value_set_pointer (value, eglglessink->egl_display);
+      break;
+    case PROP_EGL_CONFIG:
+      g_value_set_pointer (value, eglglessink->egl_config);
+      break;
+    case PROP_EGL_SHARE_CONTEXT:
+      g_value_set_pointer (value, eglglessink->egl_share_context);
+      break;
+    case PROP_EGL_SHARE_TEXTURE:
+      g_value_set_uint (value, eglglessink->egl_share_texture);
+      break;
+
+    
     default:
       G_OBJECT_WARN_INVALID_PROPERTY_ID (object, prop_id, pspec);
       break;

@@ -14,7 +14,7 @@ ifneq ($(MAKECMDGOALS),install)
 endif
             
 SO_NAME := libnvdsgst_eglglessink.so
-DEST_DIR = /usr/lib/x86_64-linux-gnu/gstreamer-1.0
+DEST_DIR = /usr/lib/x86_64-linux-gnu/gstreamer-1.0/deepstream
 
 SRCS := ext/eglgles/gstegladaptation.c \
 	ext/eglgles/gstegladaptation_egl.c \

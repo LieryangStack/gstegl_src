@@ -347,6 +347,7 @@ got_gl_error (const char *wtf)
 
   if ((error = glGetError ()) != GL_NO_ERROR) {
     GST_CAT_ERROR (GST_CAT_DEFAULT, "GL ERROR: %s returned 0x%04x", wtf, error);
+    g_print ("GL ERROR: %s returned 0x%04x", wtf, error);
     return TRUE;
   }
   return FALSE;
@@ -509,8 +510,9 @@ gst_egl_adaptation_init_surface (GstEglAdaptationContext * ctx,
   }
 
   /* Build shader program for video texture rendering */
-
+  g_print ("format = %d\n", format);
   switch (format) {
+          
     case GST_VIDEO_FORMAT_AYUV:
       frag_prog = (gchar *) frag_AYUV_prog;
       free_frag_prog = FALSE;  /* FALSE表面 frag_prog 是字符串常量，不需要内存释放，如果 g_strdup_printf，则需要释放*/
@@ -572,6 +574,7 @@ gst_egl_adaptation_init_surface (GstEglAdaptationContext * ctx,
       frag_prog = (gchar *) frag_COPY_prog;
       free_frag_prog = FALSE;
       ctx->n_textures = 1;
+      g_print ("format = %d\n", format);
       texnames[0] = "tex";
       break;
     default:
@@ -586,7 +589,7 @@ gst_egl_adaptation_init_surface (GstEglAdaptationContext * ctx,
     ctx->n_textures = 1;
     texnames[0] = "tex";
   }
-
+  
   /* 编译着色器程序 */
   if (!create_shader_program (ctx,
           &ctx->glslprogram[0],
@@ -597,6 +600,7 @@ gst_egl_adaptation_init_surface (GstEglAdaptationContext * ctx,
     frag_prog = NULL;
     goto HANDLE_ERROR;
   }
+
   if (free_frag_prog)  /* 如果 frag_prog 是通过 g_strdup_printf, 需要释放 */
     g_free (frag_prog);
   frag_prog = NULL;
@@ -629,6 +633,8 @@ gst_egl_adaptation_init_surface (GstEglAdaptationContext * ctx,
         glGetAttribLocation (ctx->glslprogram[1], "position");
   }
 
+  g_print ("tex_external_oes = %d\n", tex_external_oes);
+
   /* 生成纹理 */
   if (!ctx->have_texture) {
     GST_INFO_OBJECT (ctx->element, "Performing initial texture setup");
@@ -637,13 +643,17 @@ gst_egl_adaptation_init_surface (GstEglAdaptationContext * ctx,
     } else {
       target = GL_TEXTURE_2D;
     }
+    GstEglGlesSink *sink = (GstEglGlesSink *)ctx->element;
+    glGenTextures (ctx->n_textures, ctx->texture);
+    // ctx->texture[0] = sink->egl_share_texture;
 
-    // glGenTextures (ctx->n_textures, ctx->texture);
-    ctx->texture[0] = ((GstEglGlesSink *)ctx)->egl_share_texture;
+    g_print ("ctx->texture[0] = %d\n", ctx->texture[0]);
     if (got_gl_error ("glGenTextures"))
       goto HANDLE_ERROR_LOCKED;
 
     for (i = 0; i < ctx->n_textures; i++) {
+      g_print ("ctx->texture[i] = %d\n", ctx->texture[i]);
+      glActiveTexture (GL_TEXTURE0);
       glBindTexture (target, ctx->texture[i]);
       if (got_gl_error ("glBindTexture"))
         goto HANDLE_ERROR;
@@ -663,10 +673,6 @@ gst_egl_adaptation_init_surface (GstEglAdaptationContext * ctx,
 
     ctx->have_texture = TRUE;
   }
-
-  glUseProgram (0);
-
-  return TRUE;
 
   /* Errors */
 HANDLE_ERROR_LOCKED:
