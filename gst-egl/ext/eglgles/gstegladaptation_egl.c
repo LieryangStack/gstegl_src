@@ -266,10 +266,11 @@ gboolean
 gst_egl_adaptation_context_swap_buffers (GstEglAdaptationContext * ctx, gchar* winsys,
         gpointer * own_window_data, GstBuffer * buf, gboolean show_latency)
 {
+#if USE_EGL_WAYLAND
   if (g_strcmp0(winsys, "wayland") == 0 && show_latency) {
     register_presentation_feedback(own_window_data, buf);
   }
-
+#endif
   gboolean ret = eglSwapBuffers (gst_egl_display_get (ctx->display),
       ctx->eglglesctx->surface);
   if (ret == EGL_FALSE) {
@@ -943,7 +944,7 @@ gst_egl_adaptation_create_native_window (GstEglAdaptationContext * ctx,
     gint width, gint height, gpointer * own_window_data, gchar* winsys)
 {
   GstEglGlesSink *sink = (GstEglGlesSink *) ctx->element;
-  EGLNativeWindowType window = NULL;
+  EGLNativeWindowType window = 0;
 
 #ifdef USE_EGL_WAYLAND
   if (g_strcmp0(winsys, "wayland") == 0) {

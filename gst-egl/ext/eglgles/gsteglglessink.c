@@ -3520,6 +3520,7 @@ eglglessink_plugin_init (GstPlugin * plugin)
       GST_TYPE_EGLGLESSINK);
 }
 
+#define DS_VERSION "6.4.0"
 
 /**
  * gstreamer 寻找此结构以注册 eglglessinks

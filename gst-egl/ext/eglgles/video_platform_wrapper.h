@@ -35,6 +35,8 @@
 #include <EGL/egl.h>
 
 #define USE_EGL_X11 1
+#define IS_DESKTOP 1
+
 #ifdef USE_EGL_X11
 #include <X11/Xlib.h>
 typedef struct
