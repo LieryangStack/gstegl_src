@@ -186,7 +186,12 @@ enum
   PROP_WINSYS,
   PROP_SHOW_LATENCY,
   PROP_NVBUF_API_VERSION,
-  PROP_IVI_SURF_ID
+  PROP_IVI_SURF_ID,
+
+  PROP_EGL_DISPLAY,
+  PROP_EGL_CONFIG,
+  PROP_EGL_SHARE_CONTEXT,
+  PROP_EGL_SHARE_TEXTURE
 };
 
 static void gst_eglglessink_finalize (GObject * object);
@@ -2410,16 +2415,17 @@ gst_eglglessink_render (GstEglGlesSink * eglglessink)
   glDisableVertexAttribArray (eglglessink->egl_context->position_loc[0]);
   glDisableVertexAttribArray (eglglessink->egl_context->texpos_loc[0]);
 
-  if (!gst_egl_adaptation_context_swap_buffers (eglglessink->egl_context, eglglessink->winsys,
-              &eglglessink->own_window_data, eglglessink->last_uploaded_buffer,
-              eglglessink->show_latency)) {
-    goto HANDLE_ERROR;
-  }
+  // if (!gst_egl_adaptation_context_swap_buffers (eglglessink->egl_context, eglglessink->winsys,
+  //             &eglglessink->own_window_data, eglglessink->last_uploaded_buffer,
+  //             eglglessink->show_latency)) {
+  //   goto HANDLE_ERROR;
+  // }
 
   if (eglglessink->profile)
     GstEglJitterToolAddPoint(eglglessink->pDeliveryJitter);
 
   GST_DEBUG_OBJECT (eglglessink, "Succesfully rendered 1 frame");
+  g_print ("Succesfully rendered 1 frame\n");
   return GST_FLOW_OK;
 
 HANDLE_ERROR:
@@ -2864,7 +2870,7 @@ gst_eglglessink_configure_caps (GstEglGlesSink * eglglessink, GstCaps * caps)
     eglglessink->configured_caps = NULL;
   }
 
-  /* 实际执行的就是 eglChooseConfig  */
+  /* 获取EGL配置 和 创建 EGL上下文  */
   if (!gst_egl_adaptation_choose_config (eglglessink->egl_context)) {
     GST_ERROR_OBJECT (eglglessink, "Couldn't choose EGL config");
     goto HANDLE_ERROR;
@@ -2899,8 +2905,9 @@ gst_eglglessink_configure_caps (GstEglGlesSink * eglglessink, GstCaps * caps)
       (gpointer) eglglessink->egl_context->window);
   eglglessink->egl_context->used_window = eglglessink->egl_context->window;
   GST_OBJECT_UNLOCK (eglglessink);
-  gst_video_overlay_got_window_handle (GST_VIDEO_OVERLAY (eglglessink),
-      (uintptr_t) eglglessink->egl_context->used_window);
+
+  // gst_video_overlay_got_window_handle (GST_VIDEO_OVERLAY (eglglessink),
+  //     (uintptr_t) eglglessink->egl_context->used_window);
 
   /* gl 编译着色器程序、纹理id生成 */
   if (!eglglessink->egl_context->have_surface) {
@@ -3220,6 +3227,20 @@ gst_eglglessink_set_property (GObject * object, guint prop_id,
     case PROP_IVI_SURF_ID:
       eglglessink->ivisurf_id = g_value_get_uint (value);
       break;
+
+    case PROP_EGL_DISPLAY:
+      eglglessink->egl_display = g_value_get_pointer (value);
+      break;
+    case PROP_EGL_CONFIG:
+      eglglessink->egl_config = g_value_get_pointer (value);
+      break;
+    case PROP_EGL_SHARE_CONTEXT:
+      eglglessink->egl_share_context = g_value_get_pointer (value);
+      break;
+    case PROP_EGL_SHARE_TEXTURE:
+      eglglessink->egl_share_texture = g_value_get_uint (value);
+      break;
+
     default:
       G_OBJECT_WARN_INVALID_PROPERTY_ID (object, prop_id, pspec);
       break;
@@ -3391,6 +3412,33 @@ gst_eglglessink_class_init (GstEglGlesSinkClass * klass)
           (G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS |
           GST_PARAM_MUTABLE_READY)));
 #endif
+
+  // export GST_PLUGIN_PATH=/home/lieryang/Desktop/gstegl_src/gst-egl
+
+  g_object_class_install_property (gobject_class, PROP_EGL_DISPLAY,
+      g_param_spec_pointer ("egl-display",
+          "UI Thread EGL Dispaly",
+          "UI Thread EGL Dispaly",
+          G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS));
+    
+  g_object_class_install_property (gobject_class, PROP_EGL_CONFIG,
+      g_param_spec_pointer ("egl-config",
+          "UI Thread EGL Config",
+          "UI Thread EGL Config",
+          G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS));
+
+  g_object_class_install_property (gobject_class, PROP_EGL_SHARE_CONTEXT,
+      g_param_spec_pointer ("egl-share-context",
+          "UI Thread EGL Share Context",
+          "UI Thread EGL Share Context",
+          G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS));
+
+  g_object_class_install_property (gobject_class, PROP_EGL_SHARE_TEXTURE,
+      g_param_spec_uint ("egl-share-texture", "UI Thread share texture ID",
+          "UI Thread share texture ID",
+          0, G_MAXUINT, 0,
+          (G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS |
+          GST_PARAM_MUTABLE_READY)));
 
   gst_element_class_set_static_metadata (gstelement_class,
       "EGL/GLES vout Sink",

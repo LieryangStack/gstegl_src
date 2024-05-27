@@ -135,7 +135,8 @@ gst_egl_adaptation_init_display (GstEglAdaptationContext * ctx, gchar* winsys)
 
 #ifdef USE_EGL_X11
     if (g_strcmp0(winsys, "x11") == 0) {
-      display = eglGetDisplay (sink->display);
+      // display = eglGetDisplay (sink->display);
+      display = sink->egl_display;
     }
 #endif
 
@@ -287,21 +288,28 @@ gboolean
 _gst_egl_choose_config (GstEglAdaptationContext * ctx, gboolean try_only,
     gint * num_configs)
 {
-  EGLint cfg_number;
-  gboolean ret;
-  EGLConfig *config = NULL;
+  // EGLint cfg_number;
+  // gboolean ret;
+  // EGLConfig *config = NULL;
 
-  if (!try_only)
-    config = &ctx->eglglesctx->config;
+  // if (!try_only)
+  //   config = &ctx->eglglesctx->config;
 
-  ret = eglChooseConfig (gst_egl_display_get (ctx->display),
-      eglglessink_RGBA8888_attribs, config, 1, &cfg_number) != EGL_FALSE;
+  // ret = eglChooseConfig (gst_egl_display_get (ctx->display),
+  //     eglglessink_RGBA8888_attribs, config, 1, &cfg_number) != EGL_FALSE;
 
-  if (!ret)
-    got_egl_error ("eglChooseConfig");
-  else if (num_configs)
-    *num_configs = cfg_number;
-  return ret;
+  // if (!ret)
+  //   got_egl_error ("eglChooseConfig");
+  // else if (num_configs)
+  //   *num_configs = cfg_number;
+  // return ret;
+
+  GstEglGlesSink *sink = (GstEglGlesSink *)ctx->element;
+
+  ctx->eglglesctx->config = sink->egl_config;
+  *num_configs = 1;
+
+  return TRUE;
 }
 
 /**
@@ -310,9 +318,19 @@ _gst_egl_choose_config (GstEglAdaptationContext * ctx, gboolean try_only,
 gboolean
 gst_egl_adaptation_create_surface (GstEglAdaptationContext * ctx)
 {
+  // ctx->eglglesctx->surface =
+  //     eglCreateWindowSurface (gst_egl_display_get (ctx->display),
+  //     ctx->eglglesctx->config, ctx->used_window, NULL);
+  
+  EGLint surface_attrs[] = {
+    EGL_WIDTH, 1920,
+    EGL_HEIGHT, 1080,
+    EGL_NONE
+  };
+
   ctx->eglglesctx->surface =
-      eglCreateWindowSurface (gst_egl_display_get (ctx->display),
-      ctx->eglglesctx->config, ctx->used_window, NULL);
+      eglCreatePbufferSurface ( gst_egl_display_get (ctx->display),
+      ctx->eglglesctx->config, surface_attrs);
 
   if (ctx->eglglesctx->surface == EGL_NO_SURFACE) {
     got_egl_error ("eglCreateWindowSurface");
@@ -404,7 +422,7 @@ gst_egl_adaptation_create_egl_context (GstEglAdaptationContext * ctx)
 
   ctx->eglglesctx->eglcontext =
       eglCreateContext (gst_egl_display_get (ctx->display),
-      ctx->eglglesctx->config, EGL_NO_CONTEXT, con_attribs);
+      ctx->eglglesctx->config, ((GstEglGlesSink *)ctx)->egl_share_context, con_attribs);
 
   if (ctx->eglglesctx->eglcontext == EGL_NO_CONTEXT) {
     GST_ERROR_OBJECT (ctx->element, "EGL call returned error %x",

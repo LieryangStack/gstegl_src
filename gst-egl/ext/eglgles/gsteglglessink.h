@@ -155,6 +155,12 @@ struct _GstEglGlesSink
     texture from the SW buffer.
   */
   uint8_t *swData;
+
+  /* 自定义参数 */
+  EGLDisplay egl_display;
+  EGLConfig egl_config;
+  EGLContext egl_share_context; /* 来自UI线程的egl上下文 */
+  guint egl_share_texture; /* 来自UI线程的共享纹理ID */
 };
 
 struct _GstEglGlesSinkClass

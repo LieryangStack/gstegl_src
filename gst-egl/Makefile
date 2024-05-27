@@ -11,13 +11,10 @@
 ###############################################################################
 
 ifneq ($(MAKECMDGOALS),install)
-ifeq ($(CUDA_VER),)
-  $(error "CUDA_VER is not set. Set it by running - "export CUDA_VER=<cuda-version>"")
 endif
-endif
-
-SO_NAME := libgstnveglglessink.so
-DEST_DIR ?= /usr/lib/aarch64-linux-gnu/gstreamer-1.0
+            
+SO_NAME := libnvdsgst_eglglessink.so
+DEST_DIR = /usr/lib/x86_64-linux-gnu/gstreamer-1.0
 
 SRCS := ext/eglgles/gstegladaptation.c \
 	ext/eglgles/gstegladaptation_egl.c \
@@ -31,7 +28,7 @@ INCLUDES += -I./pre-gen-source_64/ \
         -I./gst-libs/gst/egl \
         -I/opt/nvidia/deepstream/deepstream-6.4/sources/includes/ \
         -I/usr/local/include/gstreamer-1.0 \
-        -I/usr/local/cuda-$(CUDA_VER)/targets/x86_64-linux/include/ \
+        -I/usr/local/cuda/targets/x86_64-linux/include/ \
         -I./
 
 PKGS := glib-2.0 \
@@ -51,7 +48,7 @@ CFLAGS += `pkg-config --cflags $(PKGS)`
 
 LDFLAGS = -Wl,--no-undefined -L/opt/nvidia/deepstream/deepstream-6.4/lib/ \
                              -L/usr/lib/aarch64-linux-gnu/tegra \
-														 -L/usr/local/cuda-$(CUDA_VER)/targets/x86_64-linux/lib/
+														 -L/usr/local/cuda/targets/x86_64-linux/lib/
 
 LIBS = -lnvbufsurface -lGLESv2 -lEGL -lX11 -lm -lcuda -lcudart -lwayland-client -lwayland-egl
 
@@ -67,7 +64,7 @@ $(SO_NAME): $(OBJS)
 
 .PHONY: install
 install: $(SO_NAME)
-	cp -vp $(SO_NAME) $(DEST_DIR)
+	cp -v $(SO_NAME) $(DEST_DIR)
 
 .PHONY: clean
 clean:

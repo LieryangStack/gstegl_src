@@ -1,6 +1,6 @@
 
 #include "gstegladaptation.h"
-
+#include "gsteglglessink.h"
 #include <gst/video/video.h>
 #include <string.h>
 
@@ -638,7 +638,8 @@ gst_egl_adaptation_init_surface (GstEglAdaptationContext * ctx,
       target = GL_TEXTURE_2D;
     }
 
-    glGenTextures (ctx->n_textures, ctx->texture);
+    // glGenTextures (ctx->n_textures, ctx->texture);
+    ctx->texture[0] = ((GstEglGlesSink *)ctx)->egl_share_texture;
     if (got_gl_error ("glGenTextures"))
       goto HANDLE_ERROR_LOCKED;
 
@@ -682,6 +683,7 @@ gst_egl_adaptation_choose_config (GstEglAdaptationContext * ctx)
 {
   gint egl_configs;
 
+  /* 获取 egl 配置 */
   if (!_gst_egl_choose_config (ctx, FALSE, &egl_configs)) {
     GST_ERROR_OBJECT (ctx->element, "eglChooseConfig failed");
     goto HANDLE_ERROR;
@@ -693,6 +695,7 @@ gst_egl_adaptation_choose_config (GstEglAdaptationContext * ctx)
     goto HANDLE_ERROR;
   }
 
+  /* 创建 egl 上下文 */
   if (!gst_egl_adaptation_create_egl_context (ctx)) {
     GST_ERROR_OBJECT (ctx->element, "Error getting context, eglCreateContext");
     goto HANDLE_ERROR;
