@@ -167,9 +167,12 @@ static GstStaticPadTemplate gst_eglglessink_sink_template_factory =
 /* Filter signals and args */
 enum
 {
+  UI_RENDER,
   /* FILL ME */
   LAST_SIGNAL
 };
+
+static guint signals[LAST_SIGNAL] = { 0 };
 
 enum
 {
@@ -888,6 +891,8 @@ render_thread_func (GstEglGlesSink * eglglessink)
 
       if (eglglessink->configured_caps) {
         last_flow = gst_eglglessink_upload (eglglessink, buf); /* 将GPU内部的纹理更新到我们创建的纹理 eglglessink->egl_context->texture[0] */
+        if (last_flow == GST_FLOW_OK)
+          g_signal_emit (eglglessink, signals[UI_RENDER], 0);
       } else {
         last_flow = GST_FLOW_OK;
         GST_DEBUG_OBJECT (eglglessink,
@@ -2118,6 +2123,7 @@ gst_eglglessink_cuda_buffer_copy (GstEglGlesSink * eglglessink, GstBuffer * buf)
       eglglessink->stride[0] = 1;
       eglglessink->stride[1] = 1;
       eglglessink->stride[2] = 1;
+
      } // case RGBA
      break;
     case GST_VIDEO_FORMAT_I420:
@@ -2189,6 +2195,7 @@ gst_eglglessink_cuda_buffer_copy (GstEglGlesSink * eglglessink, GstBuffer * buf)
       return FALSE;
     break;
   } //switch
+
   return TRUE;
 
 HANDLE_ERROR:
@@ -3678,6 +3685,14 @@ gst_eglglessink_class_init (GstEglGlesSinkClass * klass)
           0, G_MAXUINT, 0,
           (G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS |
           GST_PARAM_MUTABLE_READY)));
+
+  signals[UI_RENDER] =
+    g_signal_new ("ui-render",
+                  G_TYPE_FROM_CLASS (klass),
+                  G_SIGNAL_RUN_LAST,
+                  0,
+                  NULL, NULL, NULL,
+                  G_TYPE_NONE, 0);
 }
 
 static gboolean
