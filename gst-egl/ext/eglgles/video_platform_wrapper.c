@@ -39,10 +39,10 @@
 
 #define EGL_EGLEXT_PROTOTYPES
 #define GL_GLEXT_PROTOTYPES
+#include <GLES3/gl32.h>
+#include <GLES2/gl2ext.h>
 #include <EGL/egl.h>
 #include <EGL/eglext.h>
-#include <GLES2/gl2.h>
-#include <GLES2/gl2ext.h>
 
 #if defined (USE_EGL_RPI) && defined(__GNUC__)
 #pragma GCC reset_options

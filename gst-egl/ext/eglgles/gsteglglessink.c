@@ -119,6 +119,10 @@
 #include "gsteglglessink.h"
 #include "gstegljitter.h"
 
+#define STB_IMAGE_IMPLEMENTATION
+
+#include "stb_image.h"
+
 #ifdef IS_DESKTOP
 #define DEFAULT_NVBUF_API_VERSION_NEW   TRUE
 #else
@@ -573,6 +577,191 @@ gboolean isPlatformSupported (gchar* winsys)
   }
 
   return FALSE;
+}
+
+static gint
+_test_opengles (GstEglGlesSink * eglglessink){
+
+  g_print ("%s\n", __func__);
+
+  EGLDisplay egl_display = eglglessink->egl_display;
+  EGLConfig egl_config = eglglessink->egl_config;
+  EGLContext egl_context = eglglessink->egl_share_context;
+
+  g_print ("UI     egl_display=%p\n", egl_display);
+  g_print ("UI     egl_config=%p\n", egl_config);
+  g_print ("UI     egl_context=%p\n", egl_context);
+
+  EGLint surface_attrs[] = {
+    EGL_WIDTH, 1920,
+    EGL_HEIGHT, 1080,
+    EGL_NONE
+  };
+  EGLSurface  egl_pbuffer_surface = eglCreatePbufferSurface ( egl_display, egl_config, surface_attrs);  glFinish();
+  if ( egl_pbuffer_surface == EGL_NO_SURFACE ) {
+		g_print ("Unable to create EGL surface (eglError: %d\n", eglGetError());
+		return FALSE;
+	}
+
+	/* 用于指定请求的 OpenGL 或 OpenGL ES 上下文的主版本和此版本号 */
+	EGLint ctxattr[] = { 
+    EGL_CONTEXT_MAJOR_VERSION, 3, 
+    EGL_CONTEXT_MINOR_VERSION, 2, 
+    EGL_NONE 
+  };
+
+	/* 通过Display和上面获取到的的EGL帧缓存配置列表创建一个EGLContext， EGL_NO_CONTEXT表示不需要多个设备共享上下文 */
+	EGLConfig egl_pbuffer_context = eglCreateContext ( egl_display, egl_config, egl_context, ctxattr );  glFinish();
+	if ( egl_pbuffer_context == EGL_NO_CONTEXT ) {
+		g_print("Unable to create EGL context (eglError: %d\n", eglGetError());
+		return FALSE;
+	}
+
+	/* 将EGLContext和当前线程以及draw和read的EGLSurface关联，关联之后，当前线程就成为了OpenGL es的渲染线程 */
+	if ( eglMakeCurrent( egl_display, egl_pbuffer_surface, egl_pbuffer_surface, egl_pbuffer_context ) == EGL_FALSE ) {
+    g_print ("Unable make context to current (eglError: %d\n", eglGetError());
+    return FALSE;
+  }
+
+  guint texture[2] = {1, 2};
+  // eglMakeCurrent( egl_display, egl_surface, egl_surface, egl_context );
+  PFNEGLCREATEIMAGEKHRPROC eglCreateImageKHR = (PFNEGLCREATEIMAGEKHRPROC) eglGetProcAddress ("eglCreateImageKHR");
+  PFNEGLDESTROYIMAGEKHRPROC eglDestroyImageKHR = (PFNEGLDESTROYIMAGEKHRPROC) eglGetProcAddress ("eglDestroyImageKHR");
+  PFNGLEGLIMAGETARGETTEXTURE2DOESPROC glEGLImageTargetTexture2DOES = (PFNGLEGLIMAGETARGETTEXTURE2DOESPROC)eglGetProcAddress ("glEGLImageTargetTexture2DOES");
+
+  // load and create a texture 
+  // -------------------------  必须是 GL_TEXTURE_2D
+
+  glBindTexture(GL_TEXTURE_2D, 1); 
+
+  // // 在加载图像之前设置翻转Y轴
+  // stbi_set_flip_vertically_on_load(true); 已经在着色器中修改纹理坐标了
+  int img_width, img_height, nrChannels;
+  // The FileSystem::getPath(...) is part of the GitHub repository so we can find files on any IDE/platform; replace it with your own image path.
+  unsigned char *img_data = stbi_load("/home/lieryang/Desktop/LieryangStack.github.io/assets/OpenGLES/Extension/image/test.jpg", \
+                                  &img_width, &img_height, &nrChannels, 0);
+  if (img_data) {
+      glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, img_width, img_height, 0, GL_RGB, GL_UNSIGNED_BYTE, img_data);
+      glGenerateMipmap(GL_TEXTURE_2D);
+  } else {
+      g_print ("Failed to load texture\n");
+  }
+
+  glBindTexture(GL_TEXTURE_2D, 0); 
+
+  const EGLint imageAttributes[] =
+  {
+      EGL_IMAGE_PRESERVED_KHR, EGL_TRUE,
+      EGL_NONE
+  };
+
+  /**
+   * EGL_NATIVE_PIXMAP_KHR  像素图创建EGLImageKHR
+   * EGL_LINUX_DMA_BUF_EXT  DMA缓冲区创建EGLImageKHR
+   * EGL_GL_TEXTURE_2D_KHR  使用另一个纹理创建EGLImageKHR
+   * 
+  */
+  EGLImageKHR image = eglCreateImageKHR (egl_display, egl_pbuffer_context, EGL_GL_TEXTURE_2D_KHR,  (EGLClientBuffer)(uintptr_t)1, imageAttributes);
+  if (image == EGL_NO_IMAGE_KHR) {
+    g_print ("EGLImageKHR Error id = 0x%X \n", eglGetError());
+    
+    return 0;
+  }
+
+  glBindTexture(GL_TEXTURE_EXTERNAL_OES, 2); 
+
+  /**
+   * GL_TEXTURE_EXTERNAL_OES
+   * GL_TEXTURE_2D
+  */
+  glEGLImageTargetTexture2DOES(GL_TEXTURE_EXTERNAL_OES, image);
+
+  eglDestroyImageKHR (egl_display, image);
+
+  glBindTexture(GL_TEXTURE_EXTERNAL_OES, 0); 
+
+  glFinish ();
+  // glFlush ();
+
+  /* 这个必须要有，我也不明白为什么，好像有 glFinish 或者 glFlush 就可以了 */
+  // eglMakeCurrent(egl_display, EGL_NO_SURFACE, EGL_NO_SURFACE, EGL_NO_CONTEXT);
+  
+  g_print ("%s finish\n", __func__);
+
+  while(1);
+
+}
+
+
+
+static gint
+_test_opengles_for_finish_current_context (GstEglAdaptationContext * ctx){
+  // eglMakeCurrent( egl_display, egl_surface, egl_surface, egl_context );
+  PFNEGLCREATEIMAGEKHRPROC eglCreateImageKHR = (PFNEGLCREATEIMAGEKHRPROC) eglGetProcAddress ("eglCreateImageKHR");
+  PFNEGLDESTROYIMAGEKHRPROC eglDestroyImageKHR = (PFNEGLDESTROYIMAGEKHRPROC) eglGetProcAddress ("eglDestroyImageKHR");
+  PFNGLEGLIMAGETARGETTEXTURE2DOESPROC glEGLImageTargetTexture2DOES = (PFNGLEGLIMAGETARGETTEXTURE2DOESPROC)eglGetProcAddress ("glEGLImageTargetTexture2DOES");
+
+  // load and create a texture 
+  // -------------------------  必须是 GL_TEXTURE_2D
+
+  glBindTexture(GL_TEXTURE_2D, 1); 
+
+  // // 在加载图像之前设置翻转Y轴
+  // stbi_set_flip_vertically_on_load(true); 已经在着色器中修改纹理坐标了
+  int img_width, img_height, nrChannels;
+  // The FileSystem::getPath(...) is part of the GitHub repository so we can find files on any IDE/platform; replace it with your own image path.
+  unsigned char *img_data = stbi_load("/home/lieryang/Desktop/LieryangStack.github.io/assets/OpenGLES/Extension/image/test.jpg", \
+                                  &img_width, &img_height, &nrChannels, 0);
+  if (img_data) {
+      glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, img_width, img_height, 0, GL_RGB, GL_UNSIGNED_BYTE, img_data);
+      glGenerateMipmap(GL_TEXTURE_2D);
+  } else {
+      g_print ("Failed to load texture\n");
+  }
+
+  glBindTexture(GL_TEXTURE_2D, 0); 
+
+  const EGLint imageAttributes[] =
+  {
+      EGL_IMAGE_PRESERVED_KHR, EGL_TRUE,
+      EGL_NONE
+  };
+
+  /**
+   * EGL_NATIVE_PIXMAP_KHR  像素图创建EGLImageKHR
+   * EGL_LINUX_DMA_BUF_EXT  DMA缓冲区创建EGLImageKHR
+   * EGL_GL_TEXTURE_2D_KHR  使用另一个纹理创建EGLImageKHR
+   * 
+  */
+  EGLImageKHR image = eglCreateImageKHR (gst_egl_display_get (ctx->display), ctx->egl_context, EGL_GL_TEXTURE_2D_KHR,  (EGLClientBuffer)(uintptr_t)1, imageAttributes);
+  if (image == EGL_NO_IMAGE_KHR) {
+    g_print ("EGLImageKHR Error id = 0x%X \n", eglGetError());
+    
+    return 0;
+  }
+
+  glBindTexture(GL_TEXTURE_EXTERNAL_OES, 2); 
+
+  /**
+   * GL_TEXTURE_EXTERNAL_OES
+   * GL_TEXTURE_2D
+  */
+  glEGLImageTargetTexture2DOES(GL_TEXTURE_EXTERNAL_OES, image);
+
+  eglDestroyImageKHR (gst_egl_display_get (ctx->display), image);
+
+  glBindTexture(GL_TEXTURE_EXTERNAL_OES, 0); 
+
+  glFinish ();
+  // glFlush ();
+
+  /* 这个必须要有，我也不明白为什么，好像有 glFinish 或者 glFlush 就可以了 */
+  // eglMakeCurrent(egl_display, EGL_NO_SURFACE, EGL_NO_SURFACE, EGL_NO_CONTEXT);
+  
+  g_print ("%s finish\n", __func__);
+
+  while(1);
+
 }
 
 static inline gboolean
@@ -2880,8 +3069,6 @@ gst_eglglessink_configure_caps (GstEglGlesSink * eglglessink, GstCaps * caps)
     goto HANDLE_ERROR;
   }
 
-  g_print ("gst_egl_adaptation_choose_config\n");
-
   gst_caps_replace (&eglglessink->configured_caps, caps);
 
   /* By now the application should have set a window
@@ -2912,8 +3099,8 @@ gst_eglglessink_configure_caps (GstEglGlesSink * eglglessink, GstCaps * caps)
   eglglessink->egl_context->used_window = eglglessink->egl_context->window;
   GST_OBJECT_UNLOCK (eglglessink);
 
-  // gst_video_overlay_got_window_handle (GST_VIDEO_OVERLAY (eglglessink),
-  //     (uintptr_t) eglglessink->egl_context->used_window);
+  gst_video_overlay_got_window_handle (GST_VIDEO_OVERLAY (eglglessink),
+      (uintptr_t) eglglessink->egl_context->used_window);
 
   /* gl 编译着色器程序、纹理id生成 */
   if (!eglglessink->egl_context->have_surface) {
@@ -3240,19 +3427,19 @@ gst_eglglessink_set_property (GObject * object, guint prop_id,
     /* 自定义属性 */
     case PROP_EGL_DISPLAY:
       eglglessink->egl_display = g_value_get_pointer (value);
-      g_print ("eglglessink->egl_display = %p\n", eglglessink->egl_display);
+      g_print ("PROP       eglglessink->egl_display = %p\n", eglglessink->egl_display);
       break;
     case PROP_EGL_CONFIG:
       eglglessink->egl_config = g_value_get_pointer (value);
-      g_print ("eglglessink->egl_config = %p\n", eglglessink->egl_config);
+      g_print ("PROP       eglglessink->egl_config = %p\n", eglglessink->egl_config);
       break;
     case PROP_EGL_SHARE_CONTEXT:
       eglglessink->egl_share_context = g_value_get_pointer (value);
-      g_print ("eglglessink->egl_share_context = %p\n", eglglessink->egl_share_context);
+      g_print ("PROP       eglglessink->egl_share_context = %p\n", eglglessink->egl_share_context);
       break;
     case PROP_EGL_SHARE_TEXTURE:
       eglglessink->egl_share_texture = g_value_get_uint (value);
-      g_print ("eglglessink->egl_share_texture = %d\n", eglglessink->egl_share_texture);
+      g_print ("PROP       eglglessink->egl_share_texture = %d\n", eglglessink->egl_share_texture);
       break;
 
     default:

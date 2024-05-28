@@ -51,12 +51,13 @@
 #ifdef HAVE_IOS
 #include <OpenGLES/ES2/gl.h>
 #else
-#include <gst/egl/egl.h>
+#include <GLES3/gl32.h>
+#include <GLES2/gl2ext.h>
 #include <EGL/egl.h>
 #include <EGL/eglext.h>
-#include <GLES2/gl2.h>
-#include <GLES2/gl2ext.h>
 #endif
+
+#include <gst/egl/egl.h>
 
 #if defined (USE_EGL_RPI) && defined(__GNUC__)
 #pragma GCC reset_options
@@ -153,6 +154,8 @@ struct _GstEglAdaptationContext
   gboolean have_texture; /* 是否成功创建纹理 glGenTextures */
   gboolean have_surface; /* 是否成功创建并赋值了surface */
   gboolean buffer_preserved; /* 根据系统特性，是否能保存交换buffer前的一帧buffer */
+
+  EGLContext egl_context;
 };
 
 GST_DEBUG_CATEGORY_EXTERN (egladaption_debug);

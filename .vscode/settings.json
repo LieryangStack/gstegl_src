@@ -39,7 +39,9 @@
     "egl.h": "c",
     "ios": "c",
     "video_platform_wrapper.h": "c",
-    "gstegladaptation.h": "c"
+    "gstegladaptation.h": "c",
+    "videooverlay.h": "c",
+    "gstvideopool.h": "c"
   },
   "C_Cpp.errorSquiggles": "disabled",
   "C_Cpp_Runner.msvcBatchPath": "",

@@ -7,6 +7,11 @@
 #define GST_CAT_DEFAULT egladaption_debug
 GST_DEBUG_CATEGORY (egladaption_debug);
 
+
+// #define STB_IMAGE_IMPLEMENTATION
+
+// #include "stb_image.h"
+
 /* GLESv2 GLSL 着色语言
  *
  * OpenGL ES 标准不强制要求支持 YUV。这就是为什么大多数这些着色器都处理打包/平面 YUV 到 RGB 的转换。
@@ -456,6 +461,77 @@ HANDLE_ERROR:
   }
 }
 
+#if 0
+static gint
+_test_opengles (GstEglAdaptationContext * ctx){
+  // eglMakeCurrent( egl_display, egl_surface, egl_surface, egl_context );
+  PFNEGLCREATEIMAGEKHRPROC eglCreateImageKHR = (PFNEGLCREATEIMAGEKHRPROC) eglGetProcAddress ("eglCreateImageKHR");
+  PFNEGLDESTROYIMAGEKHRPROC eglDestroyImageKHR = (PFNEGLDESTROYIMAGEKHRPROC) eglGetProcAddress ("eglDestroyImageKHR");
+  PFNGLEGLIMAGETARGETTEXTURE2DOESPROC glEGLImageTargetTexture2DOES = (PFNGLEGLIMAGETARGETTEXTURE2DOESPROC)eglGetProcAddress ("glEGLImageTargetTexture2DOES");
+
+  // load and create a texture 
+  // -------------------------  必须是 GL_TEXTURE_2D
+
+  glBindTexture(GL_TEXTURE_2D, 1); 
+
+  // // 在加载图像之前设置翻转Y轴
+  // stbi_set_flip_vertically_on_load(true); 已经在着色器中修改纹理坐标了
+  int img_width, img_height, nrChannels;
+  // The FileSystem::getPath(...) is part of the GitHub repository so we can find files on any IDE/platform; replace it with your own image path.
+  unsigned char *img_data = stbi_load("/home/lieryang/Desktop/LieryangStack.github.io/assets/OpenGLES/Extension/image/test.jpg", \
+                                  &img_width, &img_height, &nrChannels, 0);
+  if (img_data) {
+      glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, img_width, img_height, 0, GL_RGB, GL_UNSIGNED_BYTE, img_data);
+      glGenerateMipmap(GL_TEXTURE_2D);
+  } else {
+      g_print ("Failed to load texture\n");
+  }
+
+  glBindTexture(GL_TEXTURE_2D, 0); 
+
+  const EGLint imageAttributes[] =
+  {
+      EGL_IMAGE_PRESERVED_KHR, EGL_TRUE,
+      EGL_NONE
+  };
+
+  /**
+   * EGL_NATIVE_PIXMAP_KHR  像素图创建EGLImageKHR
+   * EGL_LINUX_DMA_BUF_EXT  DMA缓冲区创建EGLImageKHR
+   * EGL_GL_TEXTURE_2D_KHR  使用另一个纹理创建EGLImageKHR
+   * 
+  */
+  EGLImageKHR image = eglCreateImageKHR (gst_egl_display_get (ctx->display), ctx->egl_context, EGL_GL_TEXTURE_2D_KHR,  (EGLClientBuffer)(uintptr_t)1, imageAttributes);
+  if (image == EGL_NO_IMAGE_KHR) {
+    g_print ("EGLImageKHR Error id = 0x%X \n", eglGetError());
+    
+    return 0;
+  }
+
+  glBindTexture(GL_TEXTURE_EXTERNAL_OES, 2); 
+
+  /**
+   * GL_TEXTURE_EXTERNAL_OES
+   * GL_TEXTURE_2D
+  */
+  glEGLImageTargetTexture2DOES(GL_TEXTURE_EXTERNAL_OES, image);
+
+  eglDestroyImageKHR (gst_egl_display_get (ctx->display), image);
+
+  glBindTexture(GL_TEXTURE_EXTERNAL_OES, 0); 
+
+  glFinish ();
+  // glFlush ();
+
+  /* 这个必须要有，我也不明白为什么，好像有 glFinish 或者 glFlush 就可以了 */
+  // eglMakeCurrent(egl_display, EGL_NO_SURFACE, EGL_NO_SURFACE, EGL_NO_CONTEXT);
+  
+  g_print ("%s finish\n", __func__);
+
+  while(1);
+
+}
+#endif
 /**
  * @brief: 1. 创建 EGLSurface
  *         2. 当前线程绑定 EGLContext 
@@ -487,6 +563,7 @@ gst_egl_adaptation_init_surface (GstEglAdaptationContext * ctx,
   if (!gst_egl_adaptation_context_make_current (ctx, TRUE))
     goto HANDLE_ERROR_LOCKED;
 
+  
   /* 根据查询信息，是否支持保存交换buffer之前的buffer（上一帧） */
   gst_egl_adaptation_query_buffer_preserved (ctx);
 
@@ -644,8 +721,8 @@ gst_egl_adaptation_init_surface (GstEglAdaptationContext * ctx,
       target = GL_TEXTURE_2D;
     }
     GstEglGlesSink *sink = (GstEglGlesSink *)ctx->element;
-    glGenTextures (ctx->n_textures, ctx->texture);
-    // ctx->texture[0] = sink->egl_share_texture;
+    // glGenTextures (ctx->n_textures, ctx->texture);
+    ctx->texture[0] = sink->egl_share_texture;
 
     g_print ("ctx->texture[0] = %d\n", ctx->texture[0]);
     if (got_gl_error ("glGenTextures"))
@@ -670,9 +747,14 @@ gst_egl_adaptation_init_surface (GstEglAdaptationContext * ctx,
       if (got_gl_error ("glTexParameteri"))
         goto HANDLE_ERROR_LOCKED;
     }
-
+    
+    g_print ("god god god\n");
     ctx->have_texture = TRUE;
   }
+
+  glUseProgram (0);
+
+  return TRUE;
 
   /* Errors */
 HANDLE_ERROR_LOCKED:

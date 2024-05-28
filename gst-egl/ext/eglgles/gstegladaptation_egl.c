@@ -10,10 +10,10 @@
 #include "video_platform_wrapper.h"
 #include <string.h>
 
+#include <GLES3/gl32.h>
+#include <GLES2/gl2ext.h>
 #include <EGL/egl.h>
 #include <EGL/eglext.h>
-#include <GLES2/gl2.h>
-#include <GLES2/gl2ext.h>
 #include <gst/egl/egl.h>
 
 #define GST_CAT_DEFAULT egladaption_debug
@@ -223,7 +223,7 @@ gst_egl_adaptation_context_make_current (GstEglAdaptationContext * ctx,
     g_print ("eglMakeCurrent  egldisplay = %p bind = %d\n", gst_egl_display_get (ctx->display), bind);
     g_print ("eglMakeCurrent  ctx->eglglesctx->surface = %p bind = %d\n", ctx->eglglesctx->surface, bind);
     g_print ("eglMakeCurrent  ctx->eglglesctx->eglcontext = %p bind = %d\n", ctx->eglglesctx->eglcontext, bind);
-    
+
     if (!eglMakeCurrent (gst_egl_display_get (ctx->display),
             ctx->eglglesctx->surface, ctx->eglglesctx->surface,
             ctx->eglglesctx->eglcontext)) {
@@ -241,6 +241,9 @@ gst_egl_adaptation_context_make_current (GstEglAdaptationContext * ctx,
       return FALSE;
     }
   }
+
+  
+
   // 我的测试能否绑定成功
   // glFinish();
   
@@ -455,8 +458,12 @@ gst_egl_adaptation_create_egl_context (GstEglAdaptationContext * ctx)
       eglCreateContext (gst_egl_display_get (ctx->display),
       ctx->eglglesctx->config, sink->egl_share_context, con_attribs);
   
-  g_print ("sink->egl_share_context = %p\n", sink->egl_share_context);
-  g_print ("ctx->eglglesctx->eglcontext = %p\n", ctx->eglglesctx->eglcontext);
+  ctx->egl_context = ctx->eglglesctx->eglcontext;
+  
+  g_print ("%s:  egl_display = %p\n",__func__, gst_egl_display_get (ctx->display));
+  g_print ("%s:  egl_config = %p\n",__func__, ctx->eglglesctx->config);
+  g_print ("%s:  egl_context = %p\n",__func__, sink->egl_share_context);
+  g_print ("%s: NEW egl_context = %p\n\n",__func__, ctx->eglglesctx->eglcontext);
 
   if (ctx->eglglesctx->eglcontext == EGL_NO_CONTEXT) {
     GST_ERROR_OBJECT (ctx->element, "EGL call returned error %x",
