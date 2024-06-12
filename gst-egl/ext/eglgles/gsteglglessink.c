@@ -777,7 +777,6 @@ egl_init (GstEglGlesSink * eglglessink)
     GST_ERROR_OBJECT (eglglessink, "Unsupported Window System \n");
     goto HANDLE_ERROR;
   }
-  g_print("\nUsing winsys: %s \n", eglglessink->winsys);
 
   if (!gst_egl_adaptation_init_display (eglglessink->egl_context, eglglessink->winsys)) {
     GST_ERROR_OBJECT (eglglessink, "Couldn't init EGL display");
@@ -1037,7 +1036,7 @@ gst_eglglessink_start (GstEglGlesSink * eglglessink)
     goto HANDLE_ERROR;
   }
 
-  /* Ask for a window to render to */
+  /* 此时没有 X11窗口 创建，所以会执行 */
   if (!eglglessink->have_window)
     gst_video_overlay_prepare_window_handle (GST_VIDEO_OVERLAY (eglglessink));
 
@@ -3078,11 +3077,18 @@ gst_eglglessink_configure_caps (GstEglGlesSink * eglglessink, GstCaps * caps)
 
   gst_caps_replace (&eglglessink->configured_caps, caps);
 
+<<<<<<< HEAD
   /* By now the application should have set a window
    * if it meant to do so
    */
   // GST_OBJECT_LOCK (eglglessink);
   // if (!eglglessink->have_window) {
+=======
+  
+  /* 创建X11窗口 */
+  GST_OBJECT_LOCK (eglglessink);
+  if (!eglglessink->have_window) {
+>>>>>>> 0aedac4b8951eaee43dcae2ab80f159d85805cd9
 
   //   GST_INFO_OBJECT (eglglessink,
   //       "No window. Will attempt internal window creation");
@@ -3664,21 +3670,6 @@ gst_eglglessink_class_init (GstEglGlesSinkClass * klass)
           (G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS |
           GST_PARAM_MUTABLE_READY)));
 
-  gst_element_class_set_static_metadata (gstelement_class,
-      "EGL/GLES vout Sink",
-      "Sink/Video",
-      "An EGL/GLES Video Output Sink Implementing the VideoOverlay interface",
-      "Reynaldo H. Verdejo Pinochet <reynaldo@collabora.com>, "
-      "Sebastian Dröge <sebastian.droege@collabora.co.uk>");
-
-  gst_element_class_add_pad_template (gstelement_class,
-      gst_static_pad_template_get (&gst_eglglessink_sink_template_factory));
-  g_object_class_install_property (gobject_class, PROP_NVBUF_API_VERSION,
-      g_param_spec_boolean ("bufapi-version",
-          "Use new buf API",
-          "Set to use new buf API",
-          DEFAULT_NVBUF_API_VERSION_NEW, G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS));
-
   g_object_class_install_property (gobject_class, PROP_IVI_SURF_ID,
       g_param_spec_uint ("ivisurf-id", "Wayland IVI surface ID",
           "Set Wayland IVI surface ID, only available for Wayland IVI shell",
@@ -3693,6 +3684,21 @@ gst_eglglessink_class_init (GstEglGlesSinkClass * klass)
                   0,
                   NULL, NULL, NULL,
                   G_TYPE_NONE, 0);
+  
+  gst_element_class_set_static_metadata (gstelement_class,
+      "EGL/GLES vout Sink",
+      "Sink/Video",
+      "An EGL/GLES Video Output Sink Implementing the VideoOverlay interface",
+      "Reynaldo H. Verdejo Pinochet <reynaldo@collabora.com>, "
+      "Sebastian Dröge <sebastian.droege@collabora.co.uk>");
+
+  gst_element_class_add_pad_template (gstelement_class,
+      gst_static_pad_template_get (&gst_eglglessink_sink_template_factory));
+  g_object_class_install_property (gobject_class, PROP_NVBUF_API_VERSION,
+      g_param_spec_boolean ("bufapi-version",
+          "Use new buf API",
+          "Set to use new buf API",
+          DEFAULT_NVBUF_API_VERSION_NEW, G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS));
 }
 
 static gboolean

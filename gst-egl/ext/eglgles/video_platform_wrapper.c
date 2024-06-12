@@ -109,7 +109,8 @@ platform_create_native_window_x11 (gint x, gint y, gint width, gint height, gpoi
   XStoreName (d, w, app_name);
 
   XSetNormalHints(d, w, &hints);
-  XMapWindow (d, w);
+  // XMapWindow (d, w);
+  g_print ("XMapWindow\n");
 
   Atom wmDeleteMessage = XInternAtom (d, "WM_DELETE_WINDOW", False);
   if (wmDeleteMessage != None) {
