@@ -2621,7 +2621,7 @@ gst_eglglessink_render (GstEglGlesSink * eglglessink)
     GstEglJitterToolAddPoint(eglglessink->pDeliveryJitter);
 
   GST_DEBUG_OBJECT (eglglessink, "Succesfully rendered 1 frame");
-  g_print ("Succesfully rendered 1 frame\n");
+  // g_print ("Succesfully rendered 1 frame\n");
   return GST_FLOW_OK;
 
 HANDLE_ERROR:
@@ -3077,18 +3077,11 @@ gst_eglglessink_configure_caps (GstEglGlesSink * eglglessink, GstCaps * caps)
 
   gst_caps_replace (&eglglessink->configured_caps, caps);
 
-<<<<<<< HEAD
   /* By now the application should have set a window
    * if it meant to do so
    */
   // GST_OBJECT_LOCK (eglglessink);
   // if (!eglglessink->have_window) {
-=======
-  
-  /* 创建X11窗口 */
-  GST_OBJECT_LOCK (eglglessink);
-  if (!eglglessink->have_window) {
->>>>>>> 0aedac4b8951eaee43dcae2ab80f159d85805cd9
 
   //   GST_INFO_OBJECT (eglglessink,
   //       "No window. Will attempt internal window creation");
